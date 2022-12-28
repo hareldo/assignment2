@@ -33,20 +33,18 @@ class Solution:
                                 num_of_cols,
                                 len(disparity_values)))
 
-        pad_size = win_size // 2
-        #right_padded = np.pad(right_image, ((3, 2), (2, 3)), 'constant', constant_values=(4, 6))
-        left_padded = right_padded = np.zeros((num_of_rows + pad_size * 2,
-                                               num_of_cols + pad_size * 2,
-                                               right_image.shape[2]))
-        right_padded[pad_size:-pad_size, pad_size:-pad_size, :] = right_image
-        left_padded[pad_size:-pad_size, pad_size:-pad_size, :] = left_image
+        half_win = win_size // 2
+        pad_x_right = dsp_range + half_win
+        left_padded = np.pad(left_image, ((half_win, half_win), (half_win, half_win), (0, 0)))
+        right_padded = np.pad(right_image, ((half_win, half_win), (pad_x_right, pad_x_right), (0, 0)))
 
-        for d in disparity_values:
-            diff = left_padded - right_padded[d - win_size:d - win_size + num_of_rows,
-                                              d - win_size:d - win_size + num_of_cols]
-            print(diff)
-
-
+        kernel = np.ones((win_size, win_size))
+        overlap = dsp_range + num_of_cols + half_win * 2
+        for d_index, d in enumerate(disparity_values):
+            diff = left_padded - right_padded[:, d + dsp_range:d + overlap]
+            squared_diff = np.sum(diff ** 2, axis=2)
+            sum_squared_diff = convolve2d(squared_diff, kernel, mode='valid')
+            ssdd_tensor[:, :, d_index] = sum_squared_diff
 
         ssdd_tensor -= ssdd_tensor.min()
         ssdd_tensor /= ssdd_tensor.max()
