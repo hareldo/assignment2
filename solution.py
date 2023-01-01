@@ -88,7 +88,19 @@ class Solution:
         """
         num_labels, num_of_cols = c_slice.shape[0], c_slice.shape[1]
         l_slice = np.zeros((num_labels, num_of_cols))
-        """INSERT YOUR CODE HERE"""
+        l_slice[:, 0] = c_slice[:, 0]
+
+        for col in range(1, num_of_cols):
+            a = prev_col = l_slice[:, col - 1]
+            b = p1 + np.hstack((prev_col[1], np.minimum(prev_col[0:-2:], prev_col[2:]), prev_col[-2]))
+            c = [np.min(prev_col[2:]), np.min(prev_col[3:])]
+            for d in range(2, num_labels - 2):
+                c.append(min(np.min(prev_col[:d-1]), np.min(prev_col[d+2:])))
+            c.append(np.min(prev_col[:-3]))
+            c.append(np.min(prev_col[:-2]))
+            c = np.array(c) + p2
+            M = np.minimum(a, b, c)
+            l_slice[:, col] = c_slice[:, col] + M - min(l_slice[:, col - 1])
         return l_slice
 
     def dp_labeling(self,
@@ -113,7 +125,9 @@ class Solution:
             Dynamic Programming depth estimation matrix of shape HxW.
         """
         l = np.zeros_like(ssdd_tensor)
-        """INSERT YOUR CODE HERE"""
+        for row in range(ssdd_tensor.shape[0]):
+            row_labels = self.dp_grade_slice(ssdd_tensor[row, :, :].T, p1, p2)
+            l[row, :] = row_labels.T
         return self.naive_labeling(l)
 
     def dp_labeling_per_direction(self,
