@@ -241,9 +241,14 @@ class Solution:
             Semi-Global Mapping depth estimation matrix of shape HxW.
         """
         num_of_directions = 8
-        l = np.zeros_like(ssdd_tensor)
-        direction_ssdd_dic = self.dp_labeling_per_direction(ssdd_tensor, p1, p2)
-        direction_ssdd_tensor = np.array([ssdd for ssdd in direction_ssdd_dic.values()])
-        l = np.mean(direction_ssdd_tensor, axis=-1)
+        ssdd_shape = list(ssdd_tensor.shape)
+        ssdd_shape.insert(0, num_of_directions)
+        ssdd_per_direction = np.zeros(ssdd_shape)
+        for direction in range(1, num_of_directions + 1):
+            l = np.zeros_like(ssdd_tensor)
+            for slice_ids in self.extract_slice_indices_generator(ssdd_tensor, direction):
+                l[slice_ids] = self.dp_grade_slice(ssdd_tensor[slice_ids].T, p1, p2).T
+            ssdd_per_direction[direction - 1] = l
+        l = np.mean(ssdd_per_direction, axis=0)
         return self.naive_labeling(l)
 
