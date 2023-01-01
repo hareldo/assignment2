@@ -130,6 +130,57 @@ class Solution:
             l[row, :] = row_labels.T
         return self.naive_labeling(l)
 
+    def extract_slice_indices_generator(self, ssdd_tensor: np.ndarray, direction: int) -> np.ndarray:
+        """
+         extracts slices from the ssdd according to a direction which it
+         receives as an input.
+        Args:
+            ssdd_tensor: A tensor of the sum of squared differences for every
+            pixel in a window of size win_size X win_size, for the
+            2*dsp_range + 1 possible disparity values.
+            direction: an integer in 1, ..., 8, representing the direction to extract slices along.
+        Returns:
+            A slices from the ssdd_tensor according to the input direction
+        """
+        num_of_rows, num_of_cols = ssdd_tensor.shape[:2]
+        if direction % 2 == 0:  # diagonal
+            xv, yv = np.meshgrid(np.arange(num_of_rows), np.arange(num_of_cols), indexing='ij')
+
+            if direction == 4:
+                yv = np.fliplr(yv)
+
+            elif direction == 6:
+                xv = np.flipud(xv)
+                yv = np.fliplr(yv)
+
+            elif direction == 8:
+                xv = np.flipud(xv)
+
+            num_iters = num_of_cols - 1
+            iter_id = -num_of_rows + 1
+            while iter_id < num_iters:
+                yield np.diag(xv, iter_id), np.diag(yv, iter_id)
+                iter_id += 1
+        else:
+            iter_id = 0
+            if direction == 1:
+                xv, yv = np.meshgrid(np.arange(num_of_rows), np.arange(num_of_cols), indexing='ij')
+                num_iters = num_of_rows
+            elif direction == 5:
+                xv, yv = np.meshgrid(np.arange(num_of_rows), np.arange(num_of_cols), indexing='ij')
+                yv = np.fliplr(yv)
+                num_iters = num_of_rows
+            elif direction == 3:
+                xv, yv = np.meshgrid(np.arange(num_of_rows), np.arange(num_of_cols), indexing='xy')
+                num_iters = num_of_cols
+            else:
+                xv, yv = np.meshgrid(np.arange(num_of_rows), np.arange(num_of_cols), indexing='xy')
+                xv = np.fliplr(xv)
+                num_iters = num_of_cols
+            while iter_id < num_iters:
+                yield xv[iter_id, :], yv[iter_id, :]
+                iter_id += 1
+
     def dp_labeling_per_direction(self,
                                   ssdd_tensor: np.ndarray,
                                   p1: float,
@@ -159,9 +210,12 @@ class Solution:
             that direction.
         """
         num_of_directions = 8
-        l = np.zeros_like(ssdd_tensor)
         direction_to_slice = {}
-        """INSERT YOUR CODE HERE"""
+        for direction in range(1, num_of_directions + 1):
+            l = np.zeros_like(ssdd_tensor)
+            for slice_ids in self.extract_slice_indices_generator(ssdd_tensor, direction):
+                l[slice_ids] = self.dp_grade_slice(ssdd_tensor[slice_ids].T, p1, p2).T
+            direction_to_slice[direction] = self.naive_labeling(l)
         return direction_to_slice
 
     def sgm_labeling(self, ssdd_tensor: np.ndarray, p1: float, p2: float):
@@ -188,6 +242,8 @@ class Solution:
         """
         num_of_directions = 8
         l = np.zeros_like(ssdd_tensor)
-        """INSERT YOUR CODE HERE"""
+        direction_ssdd_dic = self.dp_labeling_per_direction(ssdd_tensor, p1, p2)
+        direction_ssdd_tensor = np.array([ssdd for ssdd in direction_ssdd_dic.values()])
+        l = np.mean(direction_ssdd_tensor, axis=-1)
         return self.naive_labeling(l)
 
