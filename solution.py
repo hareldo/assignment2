@@ -28,7 +28,7 @@ class Solution:
             HxWx(2*dsp_range+1).
         """
         num_of_rows, num_of_cols = left_image.shape[0], left_image.shape[1]
-        disparity_values = range(-dsp_range, dsp_range+1)
+        disparity_values = range(-dsp_range, dsp_range + 1)
         ssdd_tensor = np.zeros((num_of_rows,
                                 num_of_cols,
                                 len(disparity_values)))
@@ -90,17 +90,14 @@ class Solution:
         l_slice = np.zeros((num_labels, num_of_cols))
         l_slice[:, 0] = c_slice[:, 0]
 
+        xx, yy = np.meshgrid(np.arange(num_labels), np.arange(num_labels))
         for col in range(1, num_of_cols):
-            a = prev_col = l_slice[:, col - 1]
-            b = p1 + np.hstack((prev_col[1], np.minimum(prev_col[0:-2:], prev_col[2:]), prev_col[-2]))
-            c = [np.min(prev_col[2:]), np.min(prev_col[3:])]
-            for d in range(2, num_labels - 2):
-                c.append(min(np.min(prev_col[:d-1]), np.min(prev_col[d+2:])))
-            c.append(np.min(prev_col[:-3]))
-            c.append(np.min(prev_col[:-2]))
-            c = np.array(c) + p2
-            M = np.minimum(a, b, c)
-            l_slice[:, col] = c_slice[:, col] + M - min(l_slice[:, col - 1])
+            l = l_slice[:, col - 1]
+            M = np.tile(l, [num_labels, 1])
+            M[np.abs(yy - xx) == 1] += p1
+            M[np.abs(yy - xx) >= 2] += p2
+
+            l_slice[:, col] = c_slice[:, col] + np.min(M, axis=1) - np.min(l)
         return l_slice
 
     def dp_labeling(self,
@@ -251,4 +248,3 @@ class Solution:
             ssdd_per_direction[direction - 1] = l
         l = np.mean(ssdd_per_direction, axis=0)
         return self.naive_labeling(l)
-
